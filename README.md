@@ -1,2 +1,3 @@
 # AssetBundleManager
 ReferenceCounter AssetBundleManager
+Only StandAlone
