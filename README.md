@@ -1,0 +1,2 @@
+# AssetBundleManager
+ReferenceCounter AssetBundleManager
