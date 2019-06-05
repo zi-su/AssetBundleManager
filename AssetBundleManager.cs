@@ -2,20 +2,24 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+
 /// <summary>
 /// AssetBundleを参照カウンタ式で管理するオブジェクト
 /// </summary>
 public class AssetBundleObject
 {
     //バンドル名
-    string _bundleName;
+    string _bundleName = null;
 
-    //参照カウント
-    int _refCount;
+    //バンドル参照カウント
+    int _refCount = 0;
 
-    string _path;
+    string _path = null;
 
     bool _loading = false;
+
+    //ロードアセット参照カウント
+    int _refAssetCount = 0;
 
     public string BundleName
     {
@@ -25,10 +29,17 @@ public class AssetBundleObject
     {
         get { return _refCount; }
     }
-
+    public int RefAssetCount{
+        get{return _refAssetCount;}
+        set { _refAssetCount = value; }
+    }
     public bool Loading
     {
         get { return _loading; }
+    }
+    public bool LoadingAsset
+    {
+        get { return _refAssetCount != 0; }
     }
 
     public AssetBundle Bundle
@@ -81,9 +92,21 @@ public class AssetBundleManager : MonoBehaviour
     string _streaminAssetPath;
 
     List<AssetBundleObject> _bundleObjectList = new List<AssetBundleObject>();
-    
+
+    static AssetBundleManager _instance;
+    static public AssetBundleManager Instance
+    {
+        get
+        {
+            if(_instance == null)
+            {
+                _instance = FindObjectOfType<AssetBundleManager>();
+            }
+            return _instance;
+        }
+    }
     // Start is called before the first frame update
-    void Start()
+    void Awake()
     {
         _streaminAssetPath = System.IO.Path.Combine(Application.dataPath, "StreamingAssets");
         StartCoroutine(LoadManifest());
@@ -135,33 +158,6 @@ public class AssetBundleManager : MonoBehaviour
         StartCoroutine(obj.LoadBundle());
     }
 
-    /// <summary>
-    /// アセットバンドルロード中チェック
-    /// </summary>
-    /// <param name="bundleName"></param>
-    /// <returns></returns>
-    public bool IsLoadingBundle(string bundleName)
-    {
-        if (_manifest == null) return true;
-        bool ret = false;
-        var dependencies = _manifest.GetAllDependencies(bundleName);
-        foreach (var d in dependencies)
-        {
-            var dobj = _bundleObjectList.Find((b) => { return b.BundleName == d; });
-            if(dobj != null)
-            {
-                ret |= dobj.Loading;
-            }
-            
-        }
-        var obj = _bundleObjectList.Find((b) => { return b.BundleName == bundleName; });
-        if(obj != null)
-        {
-            ret |= obj.Loading;
-        }
-        return ret;
-    }
-
     public void UnloadBundle(string bundleName)
     {
         //依存バンドルをアンロード
@@ -194,7 +190,7 @@ public class AssetBundleManager : MonoBehaviour
     }
 
     /// <summary>
-    /// バンドルから実際にアセットを読み込み、読み込み完了時にcompletedActopmを実行する
+    /// バンドルから実際にアセットを読み込み、読み込み完了時にcompletedActionを実行する
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="bundleName"></param>
@@ -206,11 +202,82 @@ public class AssetBundleManager : MonoBehaviour
         var bundleObj = _bundleObjectList.Find((b) => { return b.BundleName == bundleName; });
         if (bundleObj != null)
         {
+            yield return new WaitWhile(()=> { return bundleObj.Loading; });
+            bundleObj.RefAssetCount++;
             var req = bundleObj.Bundle.LoadAssetAsync<T>(assetName);
             yield return req;
             completedAction.Invoke(req.asset as T);
+            bundleObj.RefAssetCount--;
         }
     }
+
+    /// <summary>
+    /// アセットバンドルロード中チェック
+    /// </summary>
+    /// <param name="bundleName"></param>
+    /// <returns></returns>
+    public bool IsLoadingBundle(string bundleName)
+    {
+        if (_manifest == null) return true;
+        bool ret = false;
+        var dependencies = _manifest.GetAllDependencies(bundleName);
+        //依存バンドルのロード中チェック
+        foreach (var d in dependencies)
+        {
+            var dobj = _bundleObjectList.Find((b) => { return b.BundleName == d; });
+            if (dobj != null)
+            {
+                ret |= dobj.Loading;
+            }
+        }
+
+        //本体バンドルのロード中チェック
+        var obj = _bundleObjectList.Find((b) => { return b.BundleName == bundleName; });
+        if (obj != null)
+        {
+            ret |= obj.Loading;
+        }
+        return ret;
+    }
+
+    /// <summary>
+    /// バンドルからアセットロード中か
+    /// </summary>
+    /// <param name="bundleName"></param>
+    /// <returns></returns>
+    public bool IsLoadingAsset(string bundleName)
+    {
+        var bundleObj = _bundleObjectList.Find((b) => { return b.BundleName == bundleName; });
+        if(bundleObj != null)
+        {
+            return bundleObj.LoadingAsset;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// バンドルのロード中またはバンドルからアセットロード中か
+    /// </summary>
+    /// <param name="bundleName"></param>
+    /// <returns></returns>
+    public bool IsLoading(string bundleName)
+    {
+        var bundleObj = _bundleObjectList.Find((b) => { return b.BundleName == bundleName; });
+        if (bundleObj != null)
+        {
+            //依存バンドルのロード中チェック
+            var dependencies =_manifest.GetAllDependencies(bundleName);
+            bool ret = false;
+            foreach (var d in dependencies)
+            {
+                var dobj = _bundleObjectList.Find((b) => { return b.BundleName == d; });
+                if(dobj != null)
+                {
+                    ret |= dobj.Loading || dobj.LoadingAsset;
+                }
+            }
+            return bundleObj.Loading || bundleObj.LoadingAsset || ret;
+        }
+        return false;
+    }
 }
-
-
