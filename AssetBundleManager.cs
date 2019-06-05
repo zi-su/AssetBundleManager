@@ -190,7 +190,7 @@ public class AssetBundleManager : MonoBehaviour
     }
 
     /// <summary>
-    /// バンドルから実際にアセットを読み込み、読み込み完了時にcompletedActionを実行する
+    /// バンドルからアセットを読み込み、完了時にcompletedActionを実行する
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="bundleName"></param>
@@ -202,8 +202,8 @@ public class AssetBundleManager : MonoBehaviour
         var bundleObj = _bundleObjectList.Find((b) => { return b.BundleName == bundleName; });
         if (bundleObj != null)
         {
-            yield return new WaitWhile(()=> { return bundleObj.Loading; });
             bundleObj.RefAssetCount++;
+            yield return new WaitWhile(()=> { return bundleObj.Loading; });
             var req = bundleObj.Bundle.LoadAssetAsync<T>(assetName);
             yield return req;
             completedAction.Invoke(req.asset as T);
