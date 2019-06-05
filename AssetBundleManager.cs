@@ -108,6 +108,7 @@ public class AssetBundleManager : MonoBehaviour
     // Start is called before the first frame update
     void Awake()
     {
+        DontDestroyOnLoad(gameObject);
         _streaminAssetPath = System.IO.Path.Combine(Application.dataPath, "StreamingAssets");
         StartCoroutine(LoadManifest());
     }
