@@ -180,6 +180,7 @@ public class AssetBundleManager : MonoBehaviour
                 if(obj.RefCount == 0)
                 {
                     _bundleObjectList.Remove(obj);
+                    obj = null;
                 }
             }
         }
@@ -193,6 +194,7 @@ public class AssetBundleManager : MonoBehaviour
             if (bundle.RefCount == 0)
             {
                 _bundleObjectList.Remove(bundle);
+                bundle = null;
             }
         }
     }
