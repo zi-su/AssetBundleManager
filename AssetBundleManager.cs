@@ -47,11 +47,11 @@ public class AssetBundleObject
         get { return _bundle; }
     }
     AssetBundle _bundle;
-    public AssetBundleObject(string bundleName)
+    public AssetBundleObject(string bundleName, string path="")
     {
         _bundleName = bundleName;
         Debug.Log("new AssetBundleObject:" + _bundleName);
-        _path = System.IO.Path.Combine(Application.dataPath, "StreamingAssets");
+        _path = System.IO.Path.Combine(Application.dataPath, "StreamingAssets", path);
     }
 
     public IEnumerator LoadBundle()
@@ -88,6 +88,8 @@ public class AssetBundleObject
 /// </summary>
 public class AssetBundleManager : MonoBehaviour
 {
+    [SerializeField]
+    string _manifestName;
     AssetBundleManifest _manifest;
     string _streaminAssetPath;
 
@@ -125,14 +127,19 @@ public class AssetBundleManager : MonoBehaviour
     /// <returns></returns>
     public IEnumerator LoadManifest()
     {
-        var req = AssetBundle.LoadFromFileAsync(System.IO.Path.Combine(_streaminAssetPath, "StandaloneWindows"));
+        var req = AssetBundle.LoadFromFileAsync(System.IO.Path.Combine(_streaminAssetPath, _manifestName));
         yield return req;
         var asset = req.assetBundle.LoadAssetAsync<AssetBundleManifest>("AssetBundleManifest");
         yield return asset;
         _manifest = asset.asset as AssetBundleManifest;
     }
 
-    public void LoadBundle(string bundleName)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="bundleName">バンドル名</param>
+    /// <param name="path">StreamingAssets/以下のフォルダパス</param>
+    public void LoadBundle(string bundleName, string path="")
     {
         //依存バンドルロード
         var dependencies = _manifest.GetAllDependencies(bundleName);
@@ -143,7 +150,7 @@ public class AssetBundleManager : MonoBehaviour
             if(dobj == null)
             {
                 //なければnewして生成
-                dobj = new AssetBundleObject(d);
+                dobj = new AssetBundleObject(d, path);
                 _bundleObjectList.Add(dobj);
             }
             StartCoroutine(dobj.LoadBundle());
@@ -153,7 +160,7 @@ public class AssetBundleManager : MonoBehaviour
         var obj = _bundleObjectList.Find((b) => { return b.BundleName == bundleName; });
         if(obj == null)
         {
-            obj = new AssetBundleObject(bundleName);
+            obj = new AssetBundleObject(bundleName, path);
             _bundleObjectList.Add(obj);
         }
         StartCoroutine(obj.LoadBundle());
