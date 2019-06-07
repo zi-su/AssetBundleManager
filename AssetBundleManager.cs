@@ -89,11 +89,17 @@ public class AssetBundleObject
 public class AssetBundleManager : MonoBehaviour
 {
     [SerializeField]
-    string _manifestName;
+    string _manifestName = null;
     AssetBundleManifest _manifest;
     string _streaminAssetPath;
 
     List<AssetBundleObject> _bundleObjectList = new List<AssetBundleObject>();
+
+    public bool Initialized
+    {
+        get;
+        private set;
+    }
 
     static AssetBundleManager _instance;
     static public AssetBundleManager Instance
@@ -118,7 +124,6 @@ public class AssetBundleManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
     }
 
     /// <summary>
@@ -132,6 +137,7 @@ public class AssetBundleManager : MonoBehaviour
         var asset = req.assetBundle.LoadAssetAsync<AssetBundleManifest>("AssetBundleManifest");
         yield return asset;
         _manifest = asset.asset as AssetBundleManifest;
+        Initialized = true;
     }
 
     /// <summary>
@@ -207,20 +213,23 @@ public class AssetBundleManager : MonoBehaviour
     /// <param name="assetName"></param>
     /// <param name="completedAction"></param>
     /// <returns></returns>
-    public IEnumerator LoadAsset<T>(string bundleName, string assetName, System.Action<T> completedAction) where T : Object
+    public void LoadAsset<T>(string bundleName, string assetName, System.Action<T> completedAction) where T : Object
+    {
+        StartCoroutine(CoLoadAsset<T>(bundleName, assetName, completedAction));
+    }
+    IEnumerator CoLoadAsset<T>(string bundleName, string assetName, System.Action<T> completedAction) where T: Object
     {
         var bundleObj = _bundleObjectList.Find((b) => { return b.BundleName == bundleName; });
         if (bundleObj != null)
         {
             bundleObj.RefAssetCount++;
-            yield return new WaitWhile(()=> { return bundleObj.Loading; });
+            yield return new WaitWhile(() => { return bundleObj.Loading; });
             var req = bundleObj.Bundle.LoadAssetAsync<T>(assetName);
             yield return req;
             completedAction.Invoke(req.asset as T);
             bundleObj.RefAssetCount--;
         }
     }
-
     /// <summary>
     /// アセットバンドルロード中チェック
     /// </summary>
